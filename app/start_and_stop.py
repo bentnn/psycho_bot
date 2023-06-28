@@ -33,14 +33,19 @@ async def startup(dispatcher: Dispatcher):
         new_answers = {ans['name']: ans['value'] for ans in test_info['answers']}
         test_info['answers'] = new_answers
         answers = tuple(new_answers.keys())
+
         if answers in keyboards:
             this_test_keyboard = keyboards[answers]
         else:
             this_test_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
             for i in answers:
                 this_test_keyboard.add(KeyboardButton(i))
+            this_test_keyboard.add(KeyboardButton('cancel'))
             keyboards[answers] = this_test_keyboard
         tests_keyboard[test_name] = this_test_keyboard
+
+        for i in range(len(test_info['questions'])):
+            test_info['questions'][i] = f'{i + 1}. {test_info["questions"][i]}'
     logging.info(f'Клавиатуры ответов на тесты сформированы в количестве {len(keyboards)}')
     app.psycho_tests = tests
     logging.info('Finish startup')

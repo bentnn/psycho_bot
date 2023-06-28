@@ -99,18 +99,47 @@ async def process_run_test_command(message: types.Message):
 @dp.callback_query_handler(state=RunningTest.test_name)
 async def process_callback_choose_test(callback_query: types.CallbackQuery, state: FSMContext):
     state_data = await state.get_data()
+    test_info = app.psycho_tests[callback_query.data]
     await asyncio.gather(
         *(
-            bot.delete_message(chat_id=callback_query.from_user.id, message_id=msg_id)
+            bot.delete_message(chat_id=callback_query.from_user.id, message_id=msg_id),
             for msg_id in state_data.get('remove_msgs', [])
         ),
-        callback_query.answer('Тест' + callback_query.data),
+        state.update_data(remove_msgs=[]),
+        callback_query.answer('Тест ' + test_info["name"]),
         state.update_data(test_name=callback_query.data),
-        bot.send_message(chat_id=callback_query.from_user.id, text='Выбран тест ' + callback_query.data,
-                         reply_markup=keyboard_remove)
+        state.update_data(last_question_number=0),
+        bot.send_message(chat_id=callback_query.from_user.id,
+                         text=f'Тест `{test_info["name"]}`\n{test_info["instruction"]}'),
+        RunningTest.next()
     )
+    await bot.send_message(chat_id=callback_query.from_user.id,
+                           text=test_info["questions"][0],
+                           reply_markup=tests_keyboard[callback_query.data])
 
-    await state.finish()
+
+@dp.message_handler(lambda message: message.text != 'cancel', state=RunningTest.next_answer)
+async def process_test_answer_command(message: types.Message, state: FSMContext):
+    state_data = await state.get_data()
+    test_info = app.psycho_tests[state_data['test_name']]
+    if message.text not in test_info['answers']:
+        await message.answer('Не понимаю ответа')
+    else:
+        this_question_number = state_data['last_question_number'] + 1
+        answers = state_data.get('answers', [])
+        answers.append(message.text)
+        if this_question_number == len(test_info['questions']):
+            # TODO: доделать
+            await asyncio.gather(
+                state.finish(),
+                message.answer('FINISH', reply_markup=keyboard_remove)
+            )
+        else:
+            await asyncio.gather(
+                state.update_data(answers=answers),
+                state.update_data(last_question_number=this_question_number),
+                message.answer(test_info['questions'][this_question_number])
+            )
 
 
 @dp.message_handler(state='*', commands='cancel')
