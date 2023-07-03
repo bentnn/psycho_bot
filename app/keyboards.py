@@ -3,6 +3,8 @@ from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButt
 
 keyboard_remove = ReplyKeyboardRemove()
 
+cancel_button = KeyboardButton('cancel')
+
 are_you_sure_rm_id_keyboard = ReplyKeyboardMarkup(resize_keyboard=True).add(
     KeyboardButton('Да, отвязать профиль')
 ).add(
@@ -11,8 +13,14 @@ are_you_sure_rm_id_keyboard = ReplyKeyboardMarkup(resize_keyboard=True).add(
 
 
 only_cancel_keyboard = ReplyKeyboardMarkup(resize_keyboard=True).add(
-    KeyboardButton('cancel')
+    cancel_button
 )
 
 # формируется из ReplyKeyboardMarkup для каждого теста в startup
 tests_keyboard = {}
+
+all_tests_keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1).add(
+    cancel_button
+).add(
+    KeyboardButton('all')
+)

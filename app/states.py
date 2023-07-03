@@ -10,3 +10,7 @@ class RunningTest(StatesGroup):
     next_answer = State()
     answers = []
     last_question_number = 0
+
+
+class GetStats(StatesGroup):
+    test_name = State()

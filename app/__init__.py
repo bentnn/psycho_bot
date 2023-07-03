@@ -9,6 +9,7 @@ PSYCHO_SITE_REST_URL: str = f'{PSYCHO_SITE_URL}/api/v0'
 PSYCHO_USER = getenv('PSYCHO_USER')
 PSYCHO_PASSWORD = getenv('PSYCHO_PASSWORD')
 session: ClientSession = ClientSession(auth=BasicAuth(PSYCHO_USER, PSYCHO_PASSWORD))
-psycho_tests: dict = None
+psycho_tests: dict = {}
+normal_test_name_to_technical: dict = {}
 
 logging.basicConfig(format='[%(asctime)s] [%(levelname)-8s] %(message)s', level=logging.INFO)

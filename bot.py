@@ -102,7 +102,7 @@ async def process_callback_choose_test(callback_query: types.CallbackQuery, stat
     test_info = app.psycho_tests[callback_query.data]
     await asyncio.gather(
         *(
-            bot.delete_message(chat_id=callback_query.from_user.id, message_id=msg_id),
+            bot.delete_message(chat_id=callback_query.from_user.id, message_id=msg_id)
             for msg_id in state_data.get('remove_msgs', [])
         ),
         state.update_data(remove_msgs=[]),
@@ -127,19 +127,35 @@ async def process_test_answer_command(message: types.Message, state: FSMContext)
     else:
         this_question_number = state_data['last_question_number'] + 1
         answers = state_data.get('answers', [])
-        answers.append(message.text)
+        answers.append(test_info['answers'][message.text])
         if this_question_number == len(test_info['questions']):
             # TODO: доделать
-            await asyncio.gather(
+            *_, res = await asyncio.gather(
                 state.finish(),
-                message.answer('FINISH', reply_markup=keyboard_remove)
+                message.answer('Завершено, подождите, пожалуйста, получаю результаты', reply_markup=keyboard_remove),
+                send_psycho_site_request('post', f'passtest/{message.from_user.id}/{state_data["test_name"]}',
+                                         json=answers)
             )
+            await message.answer(res)
         else:
             await asyncio.gather(
                 state.update_data(answers=answers),
                 state.update_data(last_question_number=this_question_number),
                 message.answer(test_info['questions'][this_question_number])
             )
+
+
+@dp.message_handler(commands=['stats'])
+async def process_stats_command(message: types.Message):
+    await asyncio.gather(
+        message.answer('По какому тесту выгрузить статистику?', reply_markup=all_tests_keyboard),
+        GetStats.test_name.set()
+    )
+
+
+@dp.message_handler(state=GetStats.test_name)
+async def process_stats_correct(message: types.Message, state: FSMContext):
+    pass
 
 
 @dp.message_handler(state='*', commands='cancel')
