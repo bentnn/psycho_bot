@@ -5,17 +5,18 @@ from app.base_funcs import send_psycho_site_request
 from aiogram.dispatcher import FSMContext
 import asyncio
 import app
-from aiogram.utils.markdown import bold
+from aiogram.utils.markdown import bold, italic, text
 from aiogram.types import ParseMode
 from aiogram.dispatcher.filters import Text
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from app.start_and_stop import startup, shutdown
 from app.keyboards import *
 from app.states import *
-
+from app.db.save_msgs_midlware import SaveMessagesMiddleware
 
 bot = Bot(token=app.TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
+dp.middleware.setup(SaveMessagesMiddleware())
 
 
 @dp.message_handler(commands=['start', 'help'])
@@ -85,7 +86,7 @@ async def process_run_test_command(message: types.Message):
     set_state_task = asyncio.create_task(RunningTest.test_name.set())
     await message.answer(f'Выберите тест из списка:', reply_markup=only_cancel_keyboard)
     msgs = await asyncio.gather(
-        *(message.answer(bold(info['name']) + '\n' + info['info'],
+        *(message.answer(text(bold(info['name']), info['info'], sep='\n'),
                          reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton('Выбрать',
                                                                                       callback_data=test_name)),
                          parse_mode=ParseMode.MARKDOWN
@@ -130,7 +131,7 @@ async def process_test_answer_command(message: types.Message, state: FSMContext)
         answers.append(test_info['answers'][message.text])
         if this_question_number == len(test_info['questions']):
             # TODO: доделать
-            *_, res = await asyncio.gather(
+            *_, (status, res) = await asyncio.gather(
                 state.finish(),
                 message.answer('Завершено, подождите, пожалуйста, получаю результаты', reply_markup=keyboard_remove),
                 send_psycho_site_request('post', f'passtest/{message.from_user.id}/{state_data["test_name"]}',
@@ -153,9 +154,29 @@ async def process_stats_command(message: types.Message):
     )
 
 
-@dp.message_handler(state=GetStats.test_name)
+@dp.message_handler(lambda message: message.text in app.normal_test_name_to_technical or message.text == 'all',
+                    state=GetStats.test_name)
 async def process_stats_correct(message: types.Message, state: FSMContext):
-    pass
+    test_name = app.normal_test_name_to_technical[message.text] if message.text != 'all' else 'all'
+    (status, stats), *_ = await asyncio.gather(
+        send_psycho_site_request('GET', f'stats/{message.from_user.id}/{test_name}',
+                                 return_json=True, raise_if_not_ok=True),
+        state.finish(),
+        message.answer('Пожалуйста, подождите, выгружаю статистику...', reply_markup=keyboard_remove)
+    )
+    await asyncio.gather(
+        *(message.answer(italic(test_name) + '\n\n' + '\n\n'.join(bold(date.replace('.', '\.')) + '\n' + msg for date, msg in test_stats.items()),
+                         parse_mode=ParseMode.MARKDOWN)
+          for test_name, test_stats in stats.items())
+    )
+
+
+@dp.message_handler(lambda message: message.text not in app.normal_test_name_to_technical and
+                    message.text not in {'all', 'cancel'},
+                    state=GetStats.test_name)
+async def process_stats_incorrect(message: types.Message):
+    await message.answer('Не могу разобрать ответ\nПожалуйста, выберите название теста из списка',
+                         reply_markup=all_tests_keyboard)
 
 
 @dp.message_handler(state='*', commands='cancel')

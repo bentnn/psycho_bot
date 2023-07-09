@@ -1,24 +1,20 @@
 import app
 import asyncio
 from aiogram.dispatcher import Dispatcher
-from aiogram.types import BotCommand
+from .bot_commands_list import bot_commands
 # from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from .base_funcs import send_psycho_site_request
 from app import PSYCHO_SITE_URL
 from .keyboards import tests_keyboard, all_tests_keyboard, cancel_button
 import logging
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from app.db.create_db import create_db
+from app.db import db_confs
 
 
 async def startup(dispatcher: Dispatcher):
     logging.info('Start startup')
-    bot_commands = [
-        BotCommand(command="/start", description="Информация о боте"),
-        BotCommand(command="/run_test", description="Пройти тест"),
-        BotCommand(command="/stats", description="Посмотреть статистику по тестам"),
-        BotCommand(command="/check_id", description="Проверить связку бота и профиля на сайте"),
-        BotCommand(command="/rm_id", description="Отвязать бота от аккаунта"),
-    ]
+    create_db_task = asyncio.create_task(create_db())
     # dispatcher.middleware.setup(LoggingMiddleware())
     (status, tests), *_ = await asyncio.gather(
         send_psycho_site_request('GET', 'tests', return_json=True),
@@ -49,12 +45,21 @@ async def startup(dispatcher: Dispatcher):
             test_info['questions'][i] = f'{i + 1}. {test_info["questions"][i]}'
     logging.info(f'Клавиатуры ответов на тесты сформированы в количестве {len(keyboards)}')
     app.psycho_tests = tests
+
+    await create_db_task
+
     logging.info('Finish startup')
 
 
 async def shutdown(dispatcher: Dispatcher):
+    async def close_storage():
+        await dispatcher.storage.close()
+        await dispatcher.storage.wait_closed()
     logging.info('Start shutdown')
-    await app.session.close()
-    await dispatcher.storage.close()
-    await dispatcher.storage.wait_closed()
+    await asyncio.gather(
+        close_storage(),
+        app.session.close(),
+        db_confs.engine.dispose(),
+        db_confs.db_connection.close()
+    )
     logging.info('Finish shutdown')
