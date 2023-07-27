@@ -1,12 +1,14 @@
 from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton, \
-    InlineKeyboardMarkup, InlineKeyboardButton
+    InlineKeyboardMarkup
+from .const import manage_account_methods
+
 
 keyboard_remove = ReplyKeyboardRemove()
 
 cancel_button = KeyboardButton('cancel')
 
 are_you_sure_rm_id_keyboard = ReplyKeyboardMarkup(resize_keyboard=True).add(
-    KeyboardButton('Да, отвязать профиль')
+    KeyboardButton('Да, отвязать id')
 ).add(
     KeyboardButton('Нет, не нужно')
 )
@@ -24,3 +26,12 @@ all_tests_keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1).add(
 ).add(
     KeyboardButton('all')
 )
+
+choose_test_kb = InlineKeyboardMarkup(row_width=1)
+
+manage_account_kb = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+for method in manage_account_methods:
+    manage_account_kb.add(
+        KeyboardButton(method)
+    )
+manage_account_kb.add(cancel_button)

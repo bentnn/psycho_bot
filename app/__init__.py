@@ -6,10 +6,14 @@ import logging
 TOKEN: str = getenv('TOKEN')
 PSYCHO_SITE_URL: str = getenv('PSYCHO_SITE_URL')
 PSYCHO_SITE_REST_URL: str = f'{PSYCHO_SITE_URL}/api/v0'
+ADMIN_ID: str = getenv('ADMIN_ID')
 PSYCHO_USER = getenv('PSYCHO_USER')
 PSYCHO_PASSWORD = getenv('PSYCHO_PASSWORD')
 session: ClientSession = ClientSession(auth=BasicAuth(PSYCHO_USER, PSYCHO_PASSWORD))
 psycho_tests: dict = {}
 normal_test_name_to_technical: dict = {}
 
+everyday_test_time: str = getenv('EVERYDAY_TEST_TIME', '12:00')
+
 logging.basicConfig(format='[%(asctime)s] [%(levelname)-8s] %(message)s', level=logging.INFO)
+

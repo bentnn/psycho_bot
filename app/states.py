@@ -1,7 +1,8 @@
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 
-class RmID(StatesGroup):
+class ManageAccount(StatesGroup):
+    method = State()
     are_you_sure = State()
 
 

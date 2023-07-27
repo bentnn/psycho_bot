@@ -10,3 +10,11 @@ async def send_psycho_site_request(method, url, return_json=True, raise_if_not_o
         else:
             return_value = (await response.json()) if return_json else None
         return response.status, return_value
+
+
+async def run_cocos_in_loop(*coros):
+    results = []
+    for coro in coros:
+        await coro
+        results.append(coro.result())
+    return results

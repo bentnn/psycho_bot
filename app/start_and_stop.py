@@ -4,12 +4,12 @@ from aiogram.dispatcher import Dispatcher
 from .bot_commands_list import bot_commands
 # from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from .base_funcs import send_psycho_site_request
-from app import PSYCHO_SITE_URL
-from .keyboards import tests_keyboard, all_tests_keyboard, cancel_button
+from .keyboards import tests_keyboard, all_tests_keyboard, cancel_button, choose_test_kb
 import logging
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton
 from app.db.create_db import create_db
 from app.db import db_confs
+from app.schedule import scheduler_object
 
 
 async def startup(dispatcher: Dispatcher):
@@ -28,6 +28,7 @@ async def startup(dispatcher: Dispatcher):
         new_answers = {ans['name']: ans['value'] for ans in test_info['answers']}
         app.normal_test_name_to_technical[test_info['name']] = test_name
         all_tests_keyboard.add(KeyboardButton(test_info['name']))
+        choose_test_kb.add(InlineKeyboardButton(test_info['name'], callback_data=test_name))
         test_info['answers'] = new_answers
         answers = tuple(new_answers.keys())
 
@@ -43,8 +44,12 @@ async def startup(dispatcher: Dispatcher):
 
         for i in range(len(test_info['questions'])):
             test_info['questions'][i] = f'{i + 1}. {test_info["questions"][i]}'
+
     logging.info(f'Клавиатуры ответов на тесты сформированы в количестве {len(keyboards)}')
     app.psycho_tests = tests
+
+    scheduler_object.create_schedule(app.everyday_test_time)
+    logging.info('Schedule created')
 
     await create_db_task
 
@@ -56,6 +61,7 @@ async def shutdown(dispatcher: Dispatcher):
         await dispatcher.storage.close()
         await dispatcher.storage.wait_closed()
     logging.info('Start shutdown')
+    scheduler_object.remove_schedule_if_exist()
     await asyncio.gather(
         close_storage(),
         app.session.close(),

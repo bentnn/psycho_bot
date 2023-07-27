@@ -7,6 +7,7 @@ import logging
 
 
 async def create_db():
+    logging.info('Start to create and configurate db')
     db_connection = await aiosqlite.connect('db.sqlite3')
     engine = create_async_engine(
         "sqlite+aiosqlite:///db.sqlite3",
@@ -20,3 +21,4 @@ async def create_db():
     db_confs.set_engine(engine)
     db_confs.set_session(db_session)
     db_confs.set_connection(db_connection)
+    logging.info('DB was started and configurated')
