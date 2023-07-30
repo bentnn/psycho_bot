@@ -1,3 +1,5 @@
+import asyncio
+
 from app import session, PSYCHO_SITE_REST_URL
 
 
@@ -15,6 +17,9 @@ async def send_psycho_site_request(method, url, return_json=True, raise_if_not_o
 async def run_cocos_in_loop(*coros):
     results = []
     for coro in coros:
-        await coro
-        results.append(coro.result())
+        res = await coro
+        if isinstance(coro, asyncio.Task):
+            results.append(coro.result())
+        else:
+            results.append(res)
     return results

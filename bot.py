@@ -14,6 +14,8 @@ from app.keyboards import *
 from app.states import *
 from app.db.save_msgs_midlware import SaveMessagesMiddleware
 import app.const as const
+from app.create_graph import get_graph
+
 
 bot = Bot(token=app.TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -217,6 +219,18 @@ async def process_stats_command(message: types.Message):
 @dp.message_handler(lambda message: message.text in app.normal_test_name_to_technical or message.text == 'all',
                     state=GetStats.test_name)
 async def process_stats_correct(message: types.Message, state: FSMContext):
+
+    def answer_with_graph(name_of_test, test_data):
+        graph_stream = get_graph(test_data, name_of_test)
+        msg = ''
+        for date, test_res in test_data.items():
+            if not test_res.get('message'):
+                break
+            msg += '\n\n' + hbold(date) + '\n' + test_res['message']
+        return hitalic(name_of_test) + msg, graph_stream
+        # await message.answer_photo(photo=graph_stream,
+        #                            caption=hitalic(name_of_test) + msg,
+        #                            parse_mode=ParseMode.HTML)
     test_name = app.normal_test_name_to_technical[message.text] if message.text != 'all' else 'all'
     (status, stats), *_ = await asyncio.gather(
         send_psycho_site_request('GET', f'stats/{message.from_user.id}/{test_name}',
@@ -224,11 +238,31 @@ async def process_stats_correct(message: types.Message, state: FSMContext):
         state.finish(),
         message.answer('Пожалуйста, подождите, выгружаю статистику...', reply_markup=keyboard_remove)
     )
-    await asyncio.gather(
-        *(message.answer(hitalic(test_name) + '\n\n' + '\n\n'.join(hbold(date) + '\n' + msg for date, msg in test_stats.items()),
-                         parse_mode=ParseMode.HTML)
-          for test_name, test_stats in stats.items())
-    )
+
+    # для первой итерации
+    task = asyncio.to_thread(lambda x: x, 0)
+    for name, data in stats.items():
+        (msg_to_send, g_stream), *_ = await asyncio.gather(
+            asyncio.to_thread(answer_with_graph, name, data),
+            task
+        )
+        task = asyncio.create_task(
+            run_cocos_in_loop(
+                message.answer(msg_to_send, parse_mode=ParseMode.HTML),
+                message.answer_photo(photo=g_stream)
+            )
+        )
+    await task
+    await message.answer(f'Количество выгруженных тестов: {len(stats)}')
+    # await asyncio.gather(
+    #     *(answer_with_graph(k, v) for k, v in stats.items() if v)
+    # )
+    # await message.answer_photo(photo=a)
+    # await asyncio.gather(
+    #     *(message.answer(hitalic(test_name) + '\n\n' + '\n\n'.join(hbold(date) + '\n' + msg for date, msg in test_stats.items()),
+    #                      parse_mode=ParseMode.HTML)
+    #       for test_name, test_stats in stats.items())
+    # )
 
 
 @dp.message_handler(lambda message: message.text not in app.normal_test_name_to_technical and
