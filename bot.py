@@ -6,7 +6,7 @@ from aiogram.dispatcher import FSMContext
 import asyncio
 import app
 from aiogram.utils.markdown import text, hbold, hitalic
-from aiogram.types import ParseMode
+from aiogram.types import ParseMode, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.dispatcher.filters import Text
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from app.start_and_stop import startup, shutdown
@@ -90,7 +90,33 @@ async def process_manage_account_choose_method_incorrect_command(message: types.
 
 @dp.message_handler(state=ManageAccount.method)
 async def process_manage_account_choose_method_correct_command(message: types.Message, state: FSMContext):
-    pass
+
+    async def command_rm_id():
+        await asyncio.gather(
+            message.answer('Подскажите, вы уверены? Привязать аккаунт telegram можно будет только на сайте',
+                           reply_markup=are_you_sure_rm_id_keyboard),
+            ManageAccount.next()
+        )
+
+    async def command_admin_request():
+        await asyncio.gather(
+            state.finish(),
+            message.answer('Отправляю запрос администратору, позже вам поступит ответ', reply_markup=keyboard_remove),
+            bot.send_message(chat_id=app.ADMIN_ID,
+                             text=f'Просьба восстановить аккаунт пользователя на сайте, '
+                                  f'его telegram_id: {message.from_user.id}',
+                             reply_markup=InlineKeyboardMarkup().add(
+                                 InlineKeyboardButton(text='Ссылка на пользователя',
+                                                      url=f'tg://openmessage?user_id={message.from_user.id}'))
+                             )
+        )
+
+    command = const.manage_account_methods[message.text]
+    func = {
+        'rm_id': command_rm_id,
+        'admin_request': command_admin_request
+    }[command]
+    await func()
 
 
 @dp.message_handler(lambda message: message.text not in {'Да, отвязать профиль', 'Нет, не нужно'},

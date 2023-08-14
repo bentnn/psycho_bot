@@ -2,7 +2,7 @@ import asyncio
 import aioschedule
 from datetime import datetime, timedelta
 import time
-from app import psycho_tests
+from app import psycho_tests, days_to_restart_schedule
 
 
 class Scheduler:
@@ -13,6 +13,12 @@ class Scheduler:
 
     def set_dispatcher(self, dispatcher):
         self._dispatcher = dispatcher
+
+    async def start_sending(self):
+        pass
+
+    async def continue_sending(self):
+        pass
 
     async def run_schedule(self):
         pass
