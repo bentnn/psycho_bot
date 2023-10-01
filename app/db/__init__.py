@@ -1,3 +1,5 @@
+from asyncio import gather
+
 class DBConfs:
     engine = None
     db_session = None
@@ -12,6 +14,13 @@ class DBConfs:
     def set_connection(self, conn):
         self.db_connection = conn
 
+    async def close_db(self):
+        coros = []
+        if self.engine:
+            coros.append(self.engine.dispose())
+        if self.db_connection:
+            coros.append(self.db_connection.close())
+        await gather(*coros)
 
 
 db_confs = DBConfs()

@@ -1,12 +1,12 @@
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
-from app.base_funcs import send_psycho_site_request, run_cocos_in_loop
+from app.base_funcs import send_psycho_site_request, run_cocos_in_loop, start_test
 from aiogram.dispatcher import FSMContext
 import asyncio
 import app
 from aiogram.utils.markdown import text, hbold, hitalic
-from aiogram.types import ParseMode, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ParseMode
 from aiogram.dispatcher.filters import Text
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from app.start_and_stop import startup, shutdown
@@ -15,7 +15,6 @@ from app.states import *
 from app.db.save_msgs_midlware import SaveMessagesMiddleware
 import app.const as const
 from app.create_graph import get_graph
-
 
 bot = Bot(token=app.TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -45,13 +44,13 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 @dp.message_handler(commands=['start', 'help'])
 async def process_start_command(message: types.Message):
     await message.answer('Привет! Этот бот позволяет проходить тесты для сайта psycho_test из telegram.\n'
-                         'Здесь можно проходить тесты и отслеживать свои результаты', reply_markup=keyboard_remove)
-    await message.answer('Для активации бота вам необходимо зарегистрироваться/авторизоваться на сайте, '
-                         'перейти в профиль и ввести ID вашего telegram аккаунта в специальную графу')
-    await message.answer('Ваш ID:')
+                         'Здесь можно проходить тесты и отслеживать свои результаты\n\n'
+                         'Для активации бота вам необходимо зарегистрироваться/авторизоваться на сайте, '
+                         'перейти в профиль и ввести ID вашего telegram аккаунта в специальную графу\n\n'
+                         'Ваш ID:',
+                         reply_markup=keyboard_remove)
     await message.answer(message.from_user.id)
-    await message.answer('Ссылка на сайт:')
-    await message.answer(app.PSYCHO_SITE_URL)
+    await message.answer('Ссылка на сайт:', reply_markup=button_with_url_to_psycho_syte)
 
 
 @dp.message_handler(commands=['check_id'])
@@ -90,7 +89,6 @@ async def process_manage_account_choose_method_incorrect_command(message: types.
 
 @dp.message_handler(state=ManageAccount.method)
 async def process_manage_account_choose_method_correct_command(message: types.Message, state: FSMContext):
-
     async def command_rm_id():
         await asyncio.gather(
             message.answer('Подскажите, вы уверены? Привязать аккаунт telegram можно будет только на сайте',
@@ -195,16 +193,29 @@ async def process_callback_choose_test(callback_query: types.CallbackQuery, stat
         ),
         state.update_data(remove_msgs=[], test_name=callback_query.data, last_question_number=0),
         callback_query.answer('Тест ' + test_info["name"]),
-        # bot.send_message(chat_id=callback_query.from_user.id,
-        #                  text=text(hbold(f'Тест `{test_info["name"]}`'), hitalic(test_info['info'] + '\n'), test_info["instruction"], sep='\n'),
-        #                  # text=f'Тест `{test_info["name"]}`\n{test_info["instruction"]}',
-        #                  parse_mode=ParseMode.HTML),
         RunningTest.next(),
         msgs_task
     )
-    # await bot.send_message(chat_id=callback_query.from_user.id,
-    #                        text=test_info["questions"][0],
-    #                        reply_markup=tests_keyboard[callback_query.data])
+
+
+@dp.callback_query_handler(lambda c: isinstance(c.data, str) and c.data.startswith('start_test:')
+                                     and c.data.rsplit(':', 1)[-1] in app.psycho_tests)
+async def process_start_test_schedule(callback_query: types.CallbackQuery, state: FSMContext):
+    technical_test_name = callback_query.data.rsplit(':', 1)[-1]
+    test_to_start = app.psycho_tests[technical_test_name]
+    tasks = [
+        asyncio.create_task(bot.delete_message(chat_id=callback_query.from_user.id,
+                                               message_id=callback_query.message.message_id)),
+        asyncio.create_task(start_test(bot, callback_query.from_user.id, test_to_start))
+    ]
+    if (await state.get_state()) is not None:
+        await state.finish()
+    await RunningTest.next_answer.set()
+    await asyncio.gather(
+        *tasks,
+        dp.get_current().current_state().update_data(remove_msgs=[],
+                                                     test_name=technical_test_name, last_question_number=0)
+    )
 
 
 @dp.message_handler(lambda message: message.text != 'cancel', state=RunningTest.next_answer)
@@ -245,7 +256,6 @@ async def process_stats_command(message: types.Message):
 @dp.message_handler(lambda message: message.text in app.normal_test_name_to_technical or message.text == 'all',
                     state=GetStats.test_name)
 async def process_stats_correct(message: types.Message, state: FSMContext):
-
     def answer_with_graph(name_of_test, test_data):
         graph_stream = get_graph(test_data, name_of_test)
         msg = ''
@@ -254,9 +264,7 @@ async def process_stats_correct(message: types.Message, state: FSMContext):
                 break
             msg += '\n\n' + hbold(date) + '\n' + test_res['message']
         return hitalic(name_of_test) + msg, graph_stream
-        # await message.answer_photo(photo=graph_stream,
-        #                            caption=hitalic(name_of_test) + msg,
-        #                            parse_mode=ParseMode.HTML)
+
     test_name = app.normal_test_name_to_technical[message.text] if message.text != 'all' else 'all'
     (status, stats), *_ = await asyncio.gather(
         send_psycho_site_request('GET', f'stats/{message.from_user.id}/{test_name}',
@@ -292,7 +300,7 @@ async def process_stats_correct(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(lambda message: message.text not in app.normal_test_name_to_technical and
-                    message.text not in {'all', 'cancel'},
+                                    message.text not in {'all', 'cancel'},
                     state=GetStats.test_name)
 async def process_stats_incorrect(message: types.Message):
     await message.answer('Не могу разобрать ответ\nПожалуйста, выберите название теста из списка',

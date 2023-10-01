@@ -1,6 +1,12 @@
 from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton, \
-    InlineKeyboardMarkup
+    InlineKeyboardMarkup, InlineKeyboardButton
 from .const import manage_account_methods
+from app import PSYCHO_SITE_URL
+
+
+button_with_url_to_psycho_syte = InlineKeyboardMarkup().add(
+    InlineKeyboardButton(text='Перейти', url=PSYCHO_SITE_URL)
+)
 
 
 keyboard_remove = ReplyKeyboardRemove()

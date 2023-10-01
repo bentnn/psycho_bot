@@ -3,7 +3,7 @@ import asyncio
 from aiogram.dispatcher import Dispatcher
 from .bot_commands_list import bot_commands
 # from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from .base_funcs import send_psycho_site_request
+from .base_funcs import send_psycho_site_request, run_cocos_in_loop
 from .keyboards import tests_keyboard, all_tests_keyboard, cancel_button, choose_test_kb
 import logging
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton
@@ -28,7 +28,7 @@ async def startup(dispatcher: Dispatcher):
         new_answers = {ans['name']: ans['value'] for ans in test_info['answers']}
         app.normal_test_name_to_technical[test_info['name']] = test_name
         all_tests_keyboard.add(KeyboardButton(test_info['name']))
-        choose_test_kb.add(InlineKeyboardButton(test_info['name'], callback_data=test_name))
+        choose_test_kb.add(InlineKeyboardButton(text=test_info['name'], callback_data=test_name))
         test_info['answers'] = new_answers
         answers = tuple(new_answers.keys())
 
@@ -46,9 +46,11 @@ async def startup(dispatcher: Dispatcher):
             test_info['questions'][i] = f'{i + 1}. {test_info["questions"][i]}'
 
     logging.info(f'Клавиатуры ответов на тесты сформированы в количестве {len(keyboards)}')
-    app.psycho_tests = tests
+    app.psycho_tests.update(tests)
 
+    scheduler_object.set_dispatcher(dispatcher)
     scheduler_object.create_schedule(app.everyday_test_time)
+
     logging.info('Schedule created')
 
     await create_db_task
@@ -57,15 +59,10 @@ async def startup(dispatcher: Dispatcher):
 
 
 async def shutdown(dispatcher: Dispatcher):
-    async def close_storage():
-        await dispatcher.storage.close()
-        await dispatcher.storage.wait_closed()
     logging.info('Start shutdown')
-    scheduler_object.remove_schedule_if_exist()
     await asyncio.gather(
-        close_storage(),
+        run_cocos_in_loop(dispatcher.storage.close(), dispatcher.storage.wait_closed()),
         app.session.close(),
-        db_confs.engine.dispose(),
-        db_confs.db_connection.close()
+        db_confs.close_db()
     )
     logging.info('Finish shutdown')
