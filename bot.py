@@ -72,12 +72,6 @@ async def process_manage_account_command(message: types.Message):
         ManageAccount.method.set(),
         message.answer('Подскажите, какой вариант управления вам интересен', reply_markup=manage_account_kb)
     )
-    # await asyncio.gather(
-    #     message.reply("Подскажите, вы уверены?\n"
-    #                   "Для повторного подключения необходимо будет зайти на сайт и ввести ваш ID на странице профиля",
-    #                   reply_markup=are_you_sure_rm_id_keyboard),
-    #     RecoverAccount.are_you_sure.set()
-    # )
 
 
 @dp.message_handler(lambda message: message.text not in const.manage_account_methods,
@@ -97,16 +91,21 @@ async def process_manage_account_choose_method_correct_command(message: types.Me
         )
 
     async def command_admin_request():
+        link_to_user = InlineKeyboardMarkup().add(
+            InlineKeyboardButton(text='Ссылка на пользователя',
+                                 url=f'tg://openmessage?user_id={message.from_user.id}')
+        )
         await asyncio.gather(
             state.finish(),
-            message.answer('Отправляю запрос администратору, позже вам поступит ответ', reply_markup=keyboard_remove),
-            bot.send_message(chat_id=app.ADMIN_ID,
-                             text=f'Просьба восстановить аккаунт пользователя на сайте, '
-                                  f'его telegram_id: {message.from_user.id}',
-                             reply_markup=InlineKeyboardMarkup().add(
-                                 InlineKeyboardButton(text='Ссылка на пользователя',
-                                                      url=f'tg://openmessage?user_id={message.from_user.id}'))
-                             )
+            message.answer('Отправляю запрос администратору, позже вам поступит ответ',
+                           reply_markup=keyboard_remove),
+            *(
+                bot.send_message(chat_id=admin_id,
+                                 text=f'Просьба восстановить аккаунт пользователя на сайте, '
+                                      f'его telegram_id: {message.from_user.id}',
+                                 reply_markup=link_to_user)
+                for admin_id in app.ADMIN_ID
+            )
         )
 
     command = const.manage_account_methods[message.text]

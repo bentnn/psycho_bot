@@ -26,35 +26,51 @@ class Scheduler:
     async def start_sending(self):
         try:
             logging.info('Start new everyday test')
-            all_user_ads = await send_psycho_site_request(method='get', url='telegramid/all_ids', return_json=True)
+            all_user_ads = await send_psycho_site_request(method='get', url='telegramid/all_ids',
+                                                          raise_if_not_ok=True, return_json=True)
             all_user_ads = all_user_ads[1]
-            button = InlineKeyboardMarkup()
-            button.add(
-                InlineKeyboardButton(text='Начать тест', callback_data=f'start_test:{self._current_test}')
-            )
-            msg = 'Привет!\nРекомендую сегодня пройти следующий тест:\n' + psycho_tests[self._current_test]['name']
-            await asyncio.gather(
-                *(
-                    self._dispatcher.bot.send_message(chat_id=user_id, text=msg, reply_markup=button)
-                    for user_id in all_user_ads
-                )
-            )
+            await self.send_schedule_msg(all_user_ads)
         except Exception as e:
             logging.error(f'Ошибка при запуске старта ежедневного теста: {e}')
 
     async def continue_sending(self):
-        pass
+        try:
+            days_from_start = days_to_restart_schedule - self._days_to_restart
+            user_ids_to_remember = await send_psycho_site_request(
+                method='get', url=f'telegramid/who_doesnt_pass/{self._current_test}/{days_from_start}',
+                raise_if_not_ok=True, return_json=True
+            )
+            user_ids_to_remember = user_ids_to_remember[1]
+            await self.send_schedule_msg(user_ids_to_remember)
+        except Exception as e:
+            logging.error(f'Ошибка при запуске ежедневном напоминании о тесте: {e}')
+
+    async def send_schedule_msg(self, user_ids):
+        button = InlineKeyboardMarkup()
+        button.add(
+            InlineKeyboardButton(text='Начать тест', callback_data=f'start_test:{self._current_test}')
+        )
+        msg = 'Привет!\nРекомендую сегодня пройти следующий тест:\n' + psycho_tests[self._current_test]['name']
+        await asyncio.gather(
+            *(
+                self._dispatcher.bot.send_message(chat_id=user_id, text=msg, reply_markup=button)
+                for user_id in user_ids
+            )
+        )
 
     async def run_schedule(self):
-        logging.info('Run everyday action')
-        if self._days_to_restart:
-            self._days_to_restart -= 1
+        self._days_to_restart = 6
+        self._current_test = 'test1'
+        await self.continue_sending()
+        return
+        self._days_to_restart -= 1
+        if self._days_to_restart > 0:
             await self.continue_sending()
         else:
             if not self._tests_to_run:
                 self._tests_to_run = list(psycho_tests)
             self._current_test = self._tests_to_run.pop(randint(0, len(self._tests_to_run) - 1))
-            self._days_to_restart = days_to_restart_schedule - 1
+            self._days_to_restart = days_to_restart_schedule
             await self.start_sending()
 
     async def everyday_schedule(self, new_time: str) -> None:
@@ -63,6 +79,7 @@ class Scheduler:
         :param new_time: like "12:00"
         """
         aioschedule.every().day.at(new_time).do(self.run_schedule)
+        # TODO remove this line
         await self.run_schedule()
         while True:
             await aioschedule.run_pending()
