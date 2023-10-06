@@ -44,5 +44,5 @@ async def start_test(bot, from_user_id, test_info):
 async def send_help_msg(bot, chat_id):
     await bot.send_message(chat_id=chat_id,
                            text='Прошу прощения, оказалось, что вы не зарегистрированы на сайте.\n'
-                                'Нажмите на кнопку ниже для получения инструкции',
+                                'Нажмите на кнопку help для получения инструкции',
                            reply_markup=help_kb)
