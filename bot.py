@@ -1,3 +1,4 @@
+import os
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
@@ -15,7 +16,6 @@ from app.states import *
 from app.db.save_msgs_midlware import SaveMessagesMiddleware
 import app.const as const
 from app.create_graph import get_graph
-from dotenv import load_dotenv
 
 bot = Bot(token=app.TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -308,5 +308,4 @@ async def process_stats_incorrect(message: types.Message):
 
 
 if __name__ == '__main__':
-    load_dotenv()
     executor.start_polling(dp, skip_updates=True, on_startup=startup, on_shutdown=shutdown)

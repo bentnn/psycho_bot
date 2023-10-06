@@ -1,7 +1,10 @@
 from os import getenv
 from aiohttp import ClientSession, BasicAuth
 import logging
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 TOKEN: str = getenv('TOKEN')
 PSYCHO_SITE_URL: str = getenv('PSYCHO_SITE_URL')
