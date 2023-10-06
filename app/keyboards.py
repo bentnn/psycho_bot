@@ -41,3 +41,8 @@ for method in manage_account_methods:
         KeyboardButton(method)
     )
 manage_account_kb.add(cancel_button)
+
+
+help_kb = ReplyKeyboardMarkup(resize_keyboard=True).add(
+    KeyboardButton('/help')
+)

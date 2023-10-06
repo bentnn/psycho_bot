@@ -15,8 +15,8 @@ PSYCHO_PASSWORD = getenv('PSYCHO_PASSWORD')
 session: ClientSession = ClientSession(auth=BasicAuth(PSYCHO_USER, PSYCHO_PASSWORD))
 psycho_tests: dict = {}
 normal_test_name_to_technical: dict = {}
-
-everyday_test_time: str = getenv('EVERYDAY_TEST_TIME', '02:07')
+proxy_server = getenv('PROXY_SERVER')
+everyday_test_time: str = getenv('EVERYDAY_TEST_TIME', '17:00')
 days_to_restart_schedule: int = int(getenv('DAYS_TO_RESTART_SCHEDULE', 7))
 
 logging.basicConfig(format='[%(asctime)s] [%(levelname)-8s] %(message)s', level=logging.INFO)

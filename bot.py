@@ -2,7 +2,7 @@ import os
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
-from app.base_funcs import send_psycho_site_request, run_cocos_in_loop, start_test
+from app.base_funcs import send_psycho_site_request, run_cocos_in_loop, start_test, send_help_msg
 from aiogram.dispatcher import FSMContext
 import asyncio
 import app
@@ -17,7 +17,7 @@ from app.db.save_msgs_midlware import SaveMessagesMiddleware
 import app.const as const
 from app.create_graph import get_graph
 
-bot = Bot(token=app.TOKEN)
+bot = Bot(token=app.TOKEN, proxy=app.proxy_server)
 dp = Dispatcher(bot, storage=MemoryStorage())
 dp.middleware.setup(SaveMessagesMiddleware())
 
@@ -236,6 +236,9 @@ async def process_test_answer_command(message: types.Message, state: FSMContext)
                 send_psycho_site_request('post', f'passtest/{message.from_user.id}/{state_data["test_name"]}',
                                          json=answers)
             )
+            if status == 404:
+                await send_help_msg(bot, message.from_user.id)
+                return
             await message.answer(res)
         else:
             await asyncio.gather(
@@ -272,7 +275,9 @@ async def process_stats_correct(message: types.Message, state: FSMContext):
         state.finish(),
         message.answer('Пожалуйста, подождите, выгружаю статистику...', reply_markup=keyboard_remove)
     )
-
+    if status == 404:
+        await send_help_msg(bot, message.from_user.id)
+        return
     # для первой итерации
     task = asyncio.to_thread(lambda x: x, 0)
     for name, data in stats.items():

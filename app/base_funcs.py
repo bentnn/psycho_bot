@@ -1,12 +1,13 @@
 import asyncio
 
-from app import session, PSYCHO_SITE_REST_URL, normal_test_name_to_technical
+from app import session, PSYCHO_SITE_REST_URL, normal_test_name_to_technical, proxy_server
 from aiogram.utils.markdown import text, hbold, hitalic
 from aiogram.types import ParseMode
-from app.keyboards import tests_keyboard
+from app.keyboards import tests_keyboard, help_kb
+
 
 async def send_psycho_site_request(method, url, return_json=True, raise_if_not_ok=False, **kwargs):
-    async with session.request(method=method, url=f'{PSYCHO_SITE_REST_URL}/{url}', **kwargs) as response:
+    async with session.request(method=method, url=f'{PSYCHO_SITE_REST_URL}/{url}', proxy=proxy_server, **kwargs) as response:
         if not response.ok:
             if raise_if_not_ok and response.status != 404:
                 raise RuntimeError(f'Failed to send {method} to psycho site (URl={url}): {await response.text()}')
@@ -38,3 +39,10 @@ async def start_test(bot, from_user_id, test_info):
             chat_id=from_user_id, text=test_info["questions"][0],
             reply_markup=tests_keyboard[normal_test_name_to_technical[test_info["name"]]]
     )
+
+
+async def send_help_msg(bot, chat_id):
+    await bot.send_message(chat_id=chat_id,
+                           text='Прошу прощения, оказалось, что вы не зарегистрированы на сайте.\n'
+                                'Нажмите на кнопку ниже для получения инструкции',
+                           reply_markup=help_kb)

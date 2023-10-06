@@ -1,7 +1,7 @@
 import asyncio
 import aioschedule
 from aiogram.dispatcher import Dispatcher
-from app import psycho_tests, days_to_restart_schedule
+from app import psycho_tests, days_to_restart_schedule, ADMIN_ID
 from app.base_funcs import send_psycho_site_request
 from random import randint
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -23,6 +23,16 @@ class Scheduler:
     def set_dispatcher(self, dispatcher):
         self._dispatcher = dispatcher
 
+    async def send_to_all_admins(self, msg: str):
+        try:
+            msg = 'Ошибка расписания: ' + msg
+            await asyncio.gather(
+                *(self._dispatcher.bot.send_message(chat_id=user_id, text=msg)
+                  for user_id in ADMIN_ID)
+            )
+        except Exception as e:
+            logging.error(f'Ошибка при отправке ошибок расписания администраторам: {e}')
+
     async def start_sending(self):
         try:
             logging.info('Start new everyday test')
@@ -31,7 +41,9 @@ class Scheduler:
             all_user_ads = all_user_ads[1]
             await self.send_schedule_msg(all_user_ads)
         except Exception as e:
-            logging.error(f'Ошибка при запуске старта ежедневного теста: {e}')
+            msg = f'Ошибка при запуске старта ежедневного теста: {e}'
+            logging.error(msg)
+            await self.send_to_all_admins(msg)
 
     async def continue_sending(self):
         try:
@@ -43,7 +55,9 @@ class Scheduler:
             user_ids_to_remember = user_ids_to_remember[1]
             await self.send_schedule_msg(user_ids_to_remember)
         except Exception as e:
-            logging.error(f'Ошибка при запуске ежедневном напоминании о тесте: {e}')
+            msg = f'Ошибка при запуске ежедневном напоминании о тесте: {e}'
+            logging.error(msg)
+            await self.send_to_all_admins(msg)
 
     async def send_schedule_msg(self, user_ids):
         button = InlineKeyboardMarkup()
