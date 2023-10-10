@@ -73,10 +73,6 @@ class Scheduler:
         )
 
     async def run_schedule(self):
-        self._days_to_restart = 6
-        self._current_test = 'test1'
-        await self.continue_sending()
-        return
         self._days_to_restart -= 1
         if self._days_to_restart > 0:
             await self.continue_sending()
@@ -93,8 +89,6 @@ class Scheduler:
         :param new_time: like "12:00"
         """
         aioschedule.every().day.at(new_time).do(self.run_schedule)
-        # TODO remove this line
-        await self.run_schedule()
         while True:
             await aioschedule.run_pending()
             await asyncio.sleep(1)

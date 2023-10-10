@@ -9,7 +9,7 @@ load_dotenv()
 TOKEN: str = getenv('TOKEN')
 PSYCHO_SITE_URL: str = getenv('PSYCHO_SITE_URL')
 PSYCHO_SITE_REST_URL: str = f'{PSYCHO_SITE_URL}/api/v0'
-ADMIN_ID: list = [i.strip() for i in getenv('ADMIN_ID').split(',')]
+ADMIN_ID: list = [i.strip() for i in getenv('ADMIN_ID', '').split(',')]
 PSYCHO_USER = getenv('PSYCHO_USER')
 PSYCHO_PASSWORD = getenv('PSYCHO_PASSWORD')
 session: ClientSession = ClientSession(auth=BasicAuth(PSYCHO_USER, PSYCHO_PASSWORD))
