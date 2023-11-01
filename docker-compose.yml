@@ -1,0 +1,8 @@
+version: '3.7'
+services:
+  bot:
+    build: .
+    command: sh -c "python bot.py"
+    env_file:
+      - ./.env
+    restart: always
